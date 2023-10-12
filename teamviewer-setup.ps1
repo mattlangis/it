@@ -45,8 +45,8 @@ $teamviewerSetupPath = Join-Path $teamviewerPath 'Full\TeamViewer_Full.msi'
 
 # Start install 
 echo 'Start installation'
-$exeArgs = "/i '$teamviewerSetupPath' /qn APITOKEN=$apiToken CUSTOMCONFIGID=$tvConfigId ASSIGNMENTOPTIONS= --grant-easy-access"
-Start-Process -Wait msiexec.exe $teamviewerPath -ArgumentList $exeArgs
+$exeArgs = "/i $teamviewerSetupPath /quiet APITOKEN=$apiToken CUSTOMCONFIGID=$tvConfigId ASSIGNMENTOPTIONS='--grant-easy-access'"
+Start-Process msiexec.exe -Wait -ArgumentList $exeArgs
 
 # Clean file
 echo 'Cleaning'
