@@ -1,18 +1,49 @@
-$teamviewerUri = "https://get.teamviewer.com/6v5i2ut"
-$teamviewerPath = "$HOME/Downloads/Teamviewer-Setup-Matt.exe"
+function Invoke-Download {
+    param (
+        [string]$url,
+        [string]$destination
+    )
 
-$downloadResult = Start-BitsTransfer $teamviewerUri -Destination $teamviewerPath
+    $downloadResult = Start-BitsTransfer $url -Destination $destination
 
-switch ($downloadResult.JobState) {
-    'Transferred' {
-        Complete-BitsTransfer -BitsJob $downloadResult
-        break
+    switch ($downloadResult.JobState) {
+        'Transferred' {
+            Complete-BitsTransfer -BitsJob $downloadResult
+            break
+        }
+        'Error' {
+            throw 'Error downloading'
+        }
     }
-    'Error' {
-        throw 'Error downloading'
-    }
-}
+} 
 
-$exeArgs = '/S /norestart'
+$downloadFolder = "$HOME\Downloads\"
 
-Start-Process -Wait $teamviewerPath -ArgumentList $exeArgs
+# Decrypt ApiToken and ConfigId
+$teamviewerEncryptedSettingsUri = "https://raw.githubusercontent.com/mattlangis/it/main/settings/teamviewer"
+$teamviewerEncryptedPath = Join-Path $downloadFolder "teamviewer-encrypted"
+Invoke-Download -url $teamviewerEncryptedSettingsUri -destination $teamviewerEncryptedPath
+$encryptedTeamviewerStr = Get-Content $teamviewerEncryptedPath -raw
+$decryptedTeamviewerJson = Unprotect-CmsMessage -Content $encryptedTeamviewerStr | ConvertFrom-Json
+
+$apiToken = $decryptedTeamviewerJson.full.apiKey
+$tvConfigId = $decryptedTeamviewerJson.full.configId
+
+# Download teamviewer
+$teamviewerUri = "https://dl.teamviewer.com/download/version_15x/TeamViewer_MSI64.zip"
+$teamviewerFileName = "Teamviewer-Setup-Matt"
+$teamviewerPath = Join-Path $downloadFolder $teamviewerFileName
+
+Invoke-Download -url $teamviewerUri -destination "$teamviewerPath.zip"
+
+# Unzip
+
+Expand-Archive -Path "$teamviewerPath.zip" -DestinationPath "$teamviewerPath"
+$teamviewerSetupPath = Join-Path $teamviewerPath 'Full\TeamViewer_Full.msi'
+
+# Start install 
+$exeArgs = "/i '$teamviewerSetupPath' /qn APITOKEN=$apiToken CUSTOMCONFIGID=$tvConfigId ASSIGNMENTOPTIONS= --grant-easy-access"
+Start-Process -Wait msiexec.exe $teamviewerPath -ArgumentList $exeArgs
+
+# Clean file
+$teamviewerEncryptedPath | Remove-Item
